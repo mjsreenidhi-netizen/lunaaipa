@@ -197,6 +197,21 @@ class MockAIService implements AIServiceInterface {
     await randomDelay();
     return WELLNESS_TIPS[phase];
   }
+
+  async getChatResponse(messages: { role: "user" | "ai"; content: string }[]): Promise<string> {
+    await randomDelay();
+    const lastUserMessage = messages.filter(m => m.role === 'user').pop();
+    if (!lastUserMessage) return "I am here for you.";
+    
+    const text = lastUserMessage.content.toLowerCase();
+    if (text.includes("tired") || text.includes("exhausted")) {
+        return "It is completely natural to feel drained right now. The moon herself waxes and wanes. Give yourself permission to wane. What is one small way you can rest today?";
+    }
+    if (text.includes("pain") || text.includes("cramps")) {
+        return "I'm so sorry you're experiencing discomfort. Focus on warmth, gentle breathing, and rest. I recommend brewing some ginger or chamomile tea.";
+    }
+    return "I hear you. The phases you move through are powerful. What else is on your mind, Daughter of the Moon?";
+  }
 }
 
 export const mockAIService = new MockAIService();

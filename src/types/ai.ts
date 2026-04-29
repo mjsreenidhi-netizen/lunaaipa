@@ -35,4 +35,5 @@ export interface AIServiceInterface {
   getDailyInsights(userId: string, realm: Realm): Promise<AIInsight[]>;
   generateProductivityTips(phase: CyclePhase): Promise<string[]>;
   generateWellnessTips(phase: CyclePhase): Promise<string[]>;
+  getChatResponse?(messages: { role: "user" | "ai"; content: string }[]): Promise<string>;
 }

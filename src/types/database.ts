@@ -73,6 +73,116 @@ export type Database = {
           updated_at?: string;
         };
       };
+      quests: {
+        Row: {
+          id: string;
+          user_id: string;
+          realm: "work" | "personal";
+          title: string;
+          energy: string;
+          completed: boolean;
+          phase: string;
+          created_at: string;
+          completed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          realm?: "work" | "personal";
+          title: string;
+          energy?: string;
+          completed?: boolean;
+          phase?: string;
+          created_at?: string;
+          completed_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          realm?: "work" | "personal";
+          title?: string;
+          energy?: string;
+          completed?: boolean;
+          phase?: string;
+          created_at?: string;
+          completed_at?: string | null;
+        };
+      };
+      journal_entries: {
+        Row: {
+          id: string;
+          user_id: string;
+          mood: number;
+          energy: number;
+          content: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          mood?: number;
+          energy?: number;
+          content: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          mood?: number;
+          energy?: number;
+          content?: string;
+          created_at?: string;
+        };
+      };
+      chat_messages: {
+        Row: {
+          id: string;
+          user_id: string;
+          role: string;
+          content: string;
+          type: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          role: string;
+          content: string;
+          type?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          role?: string;
+          content?: string;
+          type?: string;
+          created_at?: string;
+        };
+      };
+      period_logs: {
+        Row: {
+          id: string;
+          user_id: string;
+          start_date: string;
+          end_date: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          start_date: string;
+          end_date?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          start_date?: string;
+          end_date?: string | null;
+          created_at?: string;
+        };
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
