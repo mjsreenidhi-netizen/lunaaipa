@@ -26,31 +26,25 @@ export default async function DashboardPage() {
     .eq("id", user.id)
     .single();
 
-  if (!profileData) {
-    redirect("/onboarding");
+  let profile = profileData as import("@/types/database").UserRow | null;
+
+  if (!profile) {
+    profile = {
+      id: user.id,
+      email: user.email || "",
+      name: "Luna",
+      cycle_length: 28,
+      period_duration: 5,
+      cycle_regularity: "regular",
+      primary_goal: "understand_body",
+      onboarding_completed: true,
+      current_realm: "personal",
+    };
   }
-
-  const profile = profileData as import("@/types/database").UserRow;
-
-  const [cycleAnalysis, insights] = await Promise.all([
-    mockAIService.analyzeCycleData({
-      cycleLength: profile.cycle_length,
-      periodDuration: profile.period_duration,
-    }),
-    mockAIService.getDailyInsights(
-      user.id,
-      (profile.current_realm ?? "personal") as Realm
-    ),
-  ]);
-
-  const realm = (profile.current_realm ?? "personal") as Realm;
 
   return (
     <DashboardContent
       profile={profile}
-      cycleAnalysis={cycleAnalysis}
-      insights={insights}
-      realm={realm}
     />
   );
 }
