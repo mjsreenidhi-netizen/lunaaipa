@@ -1,5 +1,5 @@
 import { Moon, Star } from "lucide-react";
-import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { EmailSignInForm } from "@/components/auth/EmailSignInForm";
 import Link from "next/link";
 
 export const metadata = {
@@ -34,22 +34,7 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <GoogleSignInButton />
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-luna-border" />
-            </div>
-            <div className="relative flex justify-center text-xs">
-              <span className="bg-luna-surface px-2 text-luna-muted">
-                New to LunaRhythm?
-              </span>
-            </div>
-          </div>
-
-          <p className="text-center text-xs text-luna-muted">
-            Sign in with Google to create your account — no password needed.
-          </p>
+          <EmailSignInForm />
         </div>
 
         <div className="mt-6 flex items-center justify-center gap-6 text-xs text-luna-muted">
