@@ -23,22 +23,24 @@ export function EmailSignInForm() {
       });
 
       if (signInError) {
-        // If the user doesn't exist or invalid credentials, try to sign up
-        if (signInError.message.includes("Invalid login credentials")) {
-          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-            email,
-            password,
-          });
-          
-          if (signUpError) {
-            throw signUpError;
+        // Attempt to sign up since sign in failed
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+        
+        if (signUpError) {
+          // If sign up fails because the user already exists, it means they just typed the wrong password
+          if (signUpError.message.includes("already registered") || signUpError.message.includes("User already exists")) {
+            throw new Error("Invalid password for existing account.");
           }
-          // Sign up successful, proceed to dashboard
-          window.location.href = "/dashboard";
-          return;
+          // Otherwise throw the sign up error
+          throw signUpError;
         }
         
-        throw signInError;
+        // Sign up successful! Since email confirm is off, we are logged in.
+        window.location.href = "/dashboard";
+        return;
       }
       
       // Sign in successful
