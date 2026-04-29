@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardContent } from "@/components/dashboard/DashboardContent";
+import "./dashboard.css";
 
 export const metadata = {
   title: "Dashboard — LunaRhythm",
