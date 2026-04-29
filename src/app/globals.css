@@ -1,0 +1,125 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-luna-bg: #0f0d1a;
+  --color-luna-surface: #1a1628;
+  --color-luna-border: #2d2545;
+  --color-luna-text: #e8e0f5;
+  --color-luna-muted: #8b7fa8;
+  --color-luna-accent: #c084fc;
+  --color-luna-accent-hover: #a855f7;
+  --color-luna-gold: #c9a227;
+  --color-luna-rose: #f0abfc;
+  --color-luna-personal: #7c3aed;
+  --color-luna-work: #4f46e5;
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  border-color: theme(colors.luna-border);
+}
+
+body {
+  background-color: theme(colors.luna-bg);
+  color: theme(colors.luna-text);
+  font-family: var(--font-geist-sans, system-ui, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: theme(colors.luna-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: theme(colors.luna-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: theme(colors.luna-muted);
+}
+
+/* Background gradient for auth pages */
+.luna-bg-gradient {
+  background: radial-gradient(
+      ellipse at 20% 50%,
+      rgba(124, 58, 237, 0.15) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at 80% 20%,
+      rgba(192, 132, 252, 0.1) 0%,
+      transparent 40%
+    ),
+    radial-gradient(
+      ellipse at 50% 80%,
+      rgba(240, 171, 252, 0.08) 0%,
+      transparent 50%
+    ),
+    theme(colors.luna-bg);
+}
+
+/* Shimmer animation for loading states */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    theme(colors.luna-surface) 25%,
+    theme(colors.luna-border) 50%,
+    theme(colors.luna-surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Glow effects */
+.luna-glow {
+  box-shadow: 0 0 20px rgba(192, 132, 252, 0.15),
+    0 0 40px rgba(192, 132, 252, 0.05);
+}
+
+.luna-glow-sm {
+  box-shadow: 0 0 10px rgba(192, 132, 252, 0.1);
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+/* Star particles effect */
+.star-field {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
