@@ -52,7 +52,7 @@ export function DashboardContent({ profile }: { profile: UserRow }) {
   const toggleRealm = async () => {
     const newRealm = realm === "personal" ? "work" : "personal";
     setRealm(newRealm);
-    await supabase.from('users').update({ current_realm: newRealm }).eq('id', profile.id);
+    await supabase.from('users').update({ current_realm: newRealm } as any).eq('id', profile.id);
   };
 
   const addQuest = async () => {
@@ -65,7 +65,7 @@ export function DashboardContent({ profile }: { profile: UserRow }) {
       completed: false,
       phase: 'all'
     };
-    const { data } = await supabase.from('quests').insert([quest]).select();
+    const { data } = await supabase.from('quests').insert([quest] as any).select();
     if (data) {
         setQuests([data[0], ...quests]);
         setNewQuestTitle("");
@@ -77,7 +77,7 @@ export function DashboardContent({ profile }: { profile: UserRow }) {
     const { data } = await supabase.from('quests').update({ 
         completed: !currentCompleted, 
         completed_at: !currentCompleted ? new Date().toISOString() : null 
-    }).eq('id', id).select();
+    } as any).eq('id', id).select();
     if (data) {
       setQuests(quests.map(q => q.id === id ? data[0] : q));
     }
@@ -91,7 +91,7 @@ export function DashboardContent({ profile }: { profile: UserRow }) {
       energy: energy,
       content: journalContent
     };
-    const { data } = await supabase.from('journal_entries').insert([entry]).select();
+    const { data } = await supabase.from('journal_entries').insert([entry] as any).select();
     if (data) {
       setJournalEntries([data[0], ...journalEntries]);
       setJournalContent("");
@@ -113,7 +113,7 @@ export function DashboardContent({ profile }: { profile: UserRow }) {
     setChatMessages(newMsgs);
     setChatInput("");
     
-    await supabase.from('chat_messages').insert([userMsg]);
+    await supabase.from('chat_messages').insert([userMsg] as any);
 
     const formattedMsgs = newMsgs.map(m => ({ role: m.role as "user"|"ai", content: m.content }));
     const aiResponseContent = await mockAIService.getChatResponse(formattedMsgs);
@@ -124,7 +124,7 @@ export function DashboardContent({ profile }: { profile: UserRow }) {
       content: aiResponseContent,
       type: 'general'
     };
-    const { data } = await supabase.from('chat_messages').insert([aiMsg]).select();
+    const { data } = await supabase.from('chat_messages').insert([aiMsg] as any).select();
     if (data) {
       setChatMessages([...newMsgs, data[0]]);
     }
