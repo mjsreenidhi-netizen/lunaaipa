@@ -4,8 +4,8 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 export function EmailSignInForm() {
-  const [email, setEmail] = useState("moonchild@realm.com");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState("mjsreenidhi@gmail.com");
+  const [password, setPassword] = useState("Sreenidhi@123");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
