@@ -53,9 +53,15 @@ export async function updateSession(request: NextRequest) {
     }
 
     if (pathname.startsWith("/dashboard")) {
-      const onboardedCookie = request.cookies.get("lunarhythm_onboarded");
+      const { data: profileData } = await supabase
+        .from("users")
+        .select("onboarding_completed")
+        .eq("id", user.id)
+        .single();
 
-      if (!onboardedCookie && pathname !== "/onboarding") {
+      const profile = profileData as { onboarding_completed: boolean } | null;
+
+      if (!profile?.onboarding_completed && pathname !== "/onboarding") {
         const url = request.nextUrl.clone();
         url.pathname = "/onboarding";
         return NextResponse.redirect(url);
@@ -63,9 +69,15 @@ export async function updateSession(request: NextRequest) {
     }
 
     if (pathname === "/onboarding") {
-      const onboardedCookie = request.cookies.get("lunarhythm_onboarded");
+      const { data: onboardingData } = await supabase
+        .from("users")
+        .select("onboarding_completed")
+        .eq("id", user.id)
+        .single();
 
-      if (onboardedCookie) {
+      const onboardingProfile = onboardingData as { onboarding_completed: boolean } | null;
+
+      if (onboardingProfile?.onboarding_completed) {
         const url = request.nextUrl.clone();
         url.pathname = "/dashboard";
         return NextResponse.redirect(url);

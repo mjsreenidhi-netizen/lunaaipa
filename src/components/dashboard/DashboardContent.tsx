@@ -1,14 +1,158 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import type { UserRow } from "@/types/database";
+import { createClient } from "@/lib/supabase/client";
+import { mockAIService } from "@/lib/ai/mock-service";
 
-
-export function DashboardContent() {
-  const [realm, setRealm] = useState<"personal" | "work">("personal");
+export function DashboardContent({ profile }: { profile: UserRow }) {
+  const supabase = createClient();
+  const [realm, setRealm] = useState<"personal" | "work">(profile.current_realm || "personal");
   const [activeTab, setActiveTab] = useState<"quests" | "journey">("quests");
   const [journalTab, setJournalTab] = useState<"new" | "memories">("new");
   
-  const avatarUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=Aria&backgroundColor=b6e3f4&style=circle&top=longHair";
+  const [quests, setQuests] = useState<any[]>([]);
+  const [journalEntries, setJournalEntries] = useState<any[]>([]);
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  
+  const [newQuestTitle, setNewQuestTitle] = useState("");
+  const [showAddQuest, setShowAddQuest] = useState(false);
+  const [journalContent, setJournalContent] = useState("");
+  const [chatInput, setChatInput] = useState("");
+  const [mood, setMood] = useState(7);
+  const [energy, setEnergy] = useState(8);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  const avatarUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=" + (profile.name || "Luna") + "&backgroundColor=b6e3f4&style=circle&top=longHair";
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: qData } = await supabase.from('quests').select('*').eq('user_id', profile.id).order('created_at', { ascending: false });
+      if (qData) setQuests(qData);
+
+      const { data: jData } = await supabase.from('journal_entries').select('*').eq('user_id', profile.id).order('created_at', { ascending: false });
+      if (jData) setJournalEntries(jData);
+
+      const { data: cData } = await supabase.from('chat_messages').select('*').eq('user_id', profile.id).order('created_at', { ascending: true });
+      if (cData && cData.length > 0) {
+        setChatMessages(cData);
+      } else {
+        const initialMsg = { role: 'ai', content: "I am here, always, a steadfast companion in your sky. You don't have to carry every celestial body on your own shoulders. Tell me, if you wish, what constellations are pressing down on you? Or perhaps, simply rest here in my silent presence, knowing that I see you, I hear you, and I hold space for every single particle of what you're feeling." };
+        setChatMessages([{ id: 'init', ...initialMsg }]);
+      }
+    };
+    fetchData();
+  }, [profile.id, supabase]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages]);
+
+  const toggleRealm = async () => {
+    const newRealm = realm === "personal" ? "work" : "personal";
+    setRealm(newRealm);
+    await supabase.from('users').update({ current_realm: newRealm }).eq('id', profile.id);
+  };
+
+  const addQuest = async () => {
+    if (!newQuestTitle.trim()) return;
+    const quest = {
+      user_id: profile.id,
+      realm: realm,
+      title: newQuestTitle,
+      energy: "high",
+      completed: false,
+      phase: 'all'
+    };
+    const { data } = await supabase.from('quests').insert([quest]).select();
+    if (data) {
+        setQuests([data[0], ...quests]);
+        setNewQuestTitle("");
+        setShowAddQuest(false);
+    }
+  };
+
+  const toggleQuest = async (id: string, currentCompleted: boolean) => {
+    const { data } = await supabase.from('quests').update({ 
+        completed: !currentCompleted, 
+        completed_at: !currentCompleted ? new Date().toISOString() : null 
+    }).eq('id', id).select();
+    if (data) {
+      setQuests(quests.map(q => q.id === id ? data[0] : q));
+    }
+  };
+
+  const saveJournal = async () => {
+    if (!journalContent.trim()) return;
+    const entry = {
+      user_id: profile.id,
+      mood: mood,
+      energy: energy,
+      content: journalContent
+    };
+    const { data } = await supabase.from('journal_entries').insert([entry]).select();
+    if (data) {
+      setJournalEntries([data[0], ...journalEntries]);
+      setJournalContent("");
+      setJournalTab("memories");
+    }
+  };
+
+  const sendChat = async () => {
+    if (!chatInput.trim()) return;
+    const userMsg = {
+      user_id: profile.id,
+      role: 'user',
+      content: chatInput,
+      type: 'general'
+    };
+    
+    const tempId = Date.now().toString();
+    const newMsgs = [...chatMessages, { id: tempId, ...userMsg }];
+    setChatMessages(newMsgs);
+    setChatInput("");
+    
+    await supabase.from('chat_messages').insert([userMsg]);
+
+    const formattedMsgs = newMsgs.map(m => ({ role: m.role as "user"|"ai", content: m.content }));
+    const aiResponseContent = await mockAIService.getChatResponse(formattedMsgs);
+    
+    const aiMsg = {
+      user_id: profile.id,
+      role: 'ai',
+      content: aiResponseContent,
+      type: 'general'
+    };
+    const { data } = await supabase.from('chat_messages').insert([aiMsg]).select();
+    if (data) {
+      setChatMessages([...newMsgs, data[0]]);
+    }
+  };
+
+  const getCalendarDays = () => {
+    const today = new Date();
+    const d = today.getDate();
+    const cycleLen = profile.cycle_length || 28;
+    const periodDur = profile.period_duration || 5;
+    
+    const lastPeriodStart = Math.max(1, d - 8);
+    const periodEnd = lastPeriodStart + periodDur;
+    const ovulation = lastPeriodStart + Math.floor(cycleLen / 2);
+    
+    return [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31].map(day => {
+        let cls = 'cal-predicted';
+        if (day >= lastPeriodStart && day < periodEnd) cls = 'cal-period';
+        else if (day >= periodEnd && day < ovulation - 2) cls = 'cal-follicular';
+        else if (day >= ovulation - 2 && day <= ovulation + 2) cls = 'cal-ovulation';
+        else if (day > ovulation + 2 && day <= lastPeriodStart + cycleLen) cls = 'cal-luteal';
+        
+        return <div key={day} className={`cal-day interactive ${cls}`} style={{padding: "0.25rem 0", borderRadius: "4px", textAlign: "center"}}>{day}</div>
+    });
+  };
+
+  const realmQuests = quests.filter(q => q.realm === realm);
+  const completedCount = quests.filter(q => q.completed).length;
 
   return (
     <>
@@ -31,7 +175,7 @@ export function DashboardContent() {
                 LunaRhythm
             </div>
             
-            <div className="realm-switcher" data-realm={realm} onClick={() => setRealm(realm === "personal" ? "work" : "personal")}>
+            <div className="realm-switcher" data-realm={realm} onClick={toggleRealm}>
                 <div className="realm-slider"></div>
                 <div className={`realm-option ${realm === "personal" ? "active" : ""}`}>Personal</div>
                 <div className={`realm-option ${realm === "work" ? "active" : ""}`}>Work Realm</div>
@@ -42,7 +186,8 @@ export function DashboardContent() {
                     <i className="fa-solid fa-notes-medical"></i> Your Health
                 </button>
                 <img src={avatarUrl} className="avatar" title="Profile" alt="Profile" style={{ marginLeft: "1rem" }} />
-                <button className="btn-icon" title="Logout" style={{ marginLeft: "0.5rem" }} onClick={() => {
+                <button className="btn-icon" title="Logout" style={{ marginLeft: "0.5rem" }} onClick={async () => {
+                  await supabase.auth.signOut();
                   window.location.href = "/login";
                 }}>
                     <i className="fa-solid fa-right-from-bracket"></i>
@@ -66,15 +211,13 @@ export function DashboardContent() {
                     <div className="mini-calendar">
                         <div className="cal-header" style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem"}}>
                             <button className="btn-icon" style={{fontSize: "0.8rem", background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer"}}><i className="fa-solid fa-chevron-left"></i></button>
-                            <span style={{fontFamily: "var(--font-heading)", color: "var(--text-secondary)"}}>MARCH 2026</span>
+                            <span style={{fontFamily: "var(--font-heading)", color: "var(--text-secondary)"}}>{new Date().toLocaleString('default', { month: 'long', year: 'numeric' }).toUpperCase()}</span>
                             <button className="btn-icon" style={{fontSize: "0.8rem", background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer"}}><i className="fa-solid fa-chevron-right"></i></button>
                         </div>
                         <div className="cal-grid" style={{display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "4px", fontSize: "0.8rem", marginBottom: "0.5rem"}}>
                             <div className="cal-day-header">S</div><div className="cal-day-header">M</div><div className="cal-day-header">T</div><div className="cal-day-header">W</div><div className="cal-day-header">T</div><div className="cal-day-header">F</div><div className="cal-day-header">S</div>
                             <div className="cal-day empty"></div><div className="cal-day empty"></div><div className="cal-day empty"></div>
-                            {[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31].map(d => (
-                                <div key={d} className={`cal-day interactive ${d >= 10 && d <= 14 ? 'cal-period' : d >= 15 && d <= 21 ? 'cal-follicular' : d === 22 ? 'cal-ovulation' : d > 22 ? 'cal-luteal' : 'cal-predicted'}`} style={{padding: "0.25rem 0", borderRadius: "4px", textAlign: "center"}}>{d}</div>
-                            ))}
+                            {getCalendarDays()}
                         </div>
                         <div style={{display: "flex", justifyContent: "space-around", fontSize: "0.65rem", color: "var(--text-muted)", marginBottom: "0.5rem", flexWrap: "wrap", gap: "0.25rem", marginTop: "1rem"}}>
                             <div style={{display: "flex", alignItems: "center", gap: "0.25rem"}}><div style={{width: "8px", height: "8px", background: "#ff4a68", borderRadius: "50%"}}></div> Period</div>
@@ -93,7 +236,7 @@ export function DashboardContent() {
                             <h3 className={activeTab === 'quests' ? 'active-tab' : 'inactive-tab'} onClick={() => setActiveTab('quests')} style={{cursor: "pointer", paddingBottom: "0.5rem", borderBottom: activeTab === 'quests' ? "2px solid var(--accent-gold)" : "none", color: activeTab === 'quests' ? "var(--accent-gold)" : "var(--text-muted)"}}>ACTIVE QUESTS</h3>
                             <h3 className={activeTab === 'journey' ? 'active-tab' : 'inactive-tab'} onClick={() => setActiveTab('journey')} style={{cursor: "pointer", paddingBottom: "0.5rem", borderBottom: activeTab === 'journey' ? "2px solid var(--accent-gold)" : "none", color: activeTab === 'journey' ? "var(--text-secondary)" : "var(--text-muted)"}}>JOURNEY SO FAR</h3>
                         </div>
-                        <button className="btn-icon" style={{background: "rgba(0,0,0,0.2)", width: "32px", height: "32px", borderRadius: "50%", border: "1px solid rgba(255,255,255,0.1)", color: "var(--text-primary)", cursor: "pointer"}} title="Add Quest"><i className="fa-solid fa-plus"></i></button>
+                        <button className="btn-icon" onClick={() => setShowAddQuest(!showAddQuest)} style={{background: "rgba(0,0,0,0.2)", width: "32px", height: "32px", borderRadius: "50%", border: "1px solid rgba(255,255,255,0.1)", color: "var(--text-primary)", cursor: "pointer"}} title="Add Quest"><i className="fa-solid fa-plus"></i></button>
                     </div>
                     <div className="quests-filter-row" style={{display: "flex", gap: "1rem", fontSize: "0.85rem", marginBottom: "1.5rem"}}>
                         <span style={{cursor: "pointer", color: "var(--accent-gold)"}}>Daily</span>
@@ -101,8 +244,37 @@ export function DashboardContent() {
                         <span style={{cursor: "pointer", color: "var(--text-muted)"}}>Monthly</span>
                         <span style={{cursor: "pointer", color: "var(--text-muted)"}}>Yearly</span>
                     </div>
+                    
+                    {showAddQuest && (
+                        <div style={{display: "flex", gap: "0.5rem", marginBottom: "1.5rem"}}>
+                            <input 
+                                type="text" 
+                                value={newQuestTitle}
+                                onChange={(e) => setNewQuestTitle(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && addQuest()}
+                                className="auth-input" 
+                                placeholder="What quest seeks you today?" 
+                                style={{flex: 1, padding: "0.6rem 1rem", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "var(--border-radius-sm)", color: "white", fontSize: "0.9rem"}} 
+                            />
+                            <button onClick={addQuest} className="btn-primary" style={{background: "var(--accent-gold)", color: "var(--bg-dark)", border: "none", padding: "0 1rem", borderRadius: "var(--border-radius-sm)", cursor: "pointer"}}><i className="fa-solid fa-check"></i></button>
+                        </div>
+                    )}
+
                     <div className="quest-list text-muted" style={{fontSize: "0.95rem"}}>
-                        No quests remain in this realm. Rest easy, Daughter of the Moon.
+                        {realmQuests.length === 0 ? (
+                            "No quests remain in this realm. Rest easy, Daughter of the Moon."
+                        ) : (
+                            <div style={{display: "flex", flexDirection: "column", gap: "0.8rem"}}>
+                                {realmQuests.map(q => (
+                                    <div key={q.id} style={{display: "flex", alignItems: "center", gap: "1rem", padding: "0.8rem", background: "rgba(0,0,0,0.2)", borderRadius: "var(--border-radius-sm)", color: q.completed ? "var(--text-muted)" : "var(--text-primary)", borderLeft: "3px solid " + (q.completed ? "transparent" : "var(--accent-gold)")}}>
+                                        <div onClick={() => toggleQuest(q.id, q.completed)} style={{cursor: "pointer", color: q.completed ? "var(--accent-gold)" : "rgba(255,255,255,0.2)"}}>
+                                            <i className={q.completed ? "fa-solid fa-circle-check" : "fa-regular fa-circle"}></i>
+                                        </div>
+                                        <div style={{flex: 1, textDecoration: q.completed ? "line-through" : "none"}}>{q.title}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -123,21 +295,35 @@ export function DashboardContent() {
                             <div className="mood-energy-sliders fade-in" style={{display: "flex", gap: "2rem", marginBottom: "1.5rem"}}>
                                 <div className="slider-group" style={{flex: 1}}>
                                     <label style={{display: "flex", justifyContent: "space-between", marginBottom: "0.5rem", fontSize: "0.85rem", color: "var(--text-secondary)"}}><span>Mood</span> <span className="text-gold" style={{color: "var(--accent-gold)"}}><i className="fa-solid fa-face-smile"></i></span></label>
-                                    <input type="range" min="1" max="10" defaultValue="7" style={{width: "100%", height: "4px", background: "rgba(255,255,255,0.2)", borderRadius: "2px", appearance: "none"}} />
+                                    <input type="range" min="1" max="10" value={mood} onChange={(e) => setMood(parseInt(e.target.value))} style={{width: "100%", height: "4px", background: "rgba(255,255,255,0.2)", borderRadius: "2px", appearance: "none"}} />
                                 </div>
                                 <div className="slider-group" style={{flex: 1}}>
                                     <label style={{display: "flex", justifyContent: "space-between", marginBottom: "0.5rem", fontSize: "0.85rem", color: "var(--text-secondary)"}}><span>Energy</span> <span className="text-magic" style={{color: "var(--accent-magic)"}}><i className="fa-solid fa-bolt"></i></span></label>
-                                    <input type="range" min="1" max="10" defaultValue="8" style={{width: "100%", height: "4px", background: "rgba(255,255,255,0.2)", borderRadius: "2px", appearance: "none"}} />
+                                    <input type="range" min="1" max="10" value={energy} onChange={(e) => setEnergy(parseInt(e.target.value))} style={{width: "100%", height: "4px", background: "rgba(255,255,255,0.2)", borderRadius: "2px", appearance: "none"}} />
                                 </div>
                             </div>
-                            <textarea className="journal-input fade-in" placeholder="Record your thoughts, moon goddess..." style={{width: "100%", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "var(--border-radius-sm)", padding: "1rem", color: "var(--text-primary)", minHeight: "100px", marginBottom: "1rem", fontSize: "0.9rem", fontFamily: "var(--font-body)", resize: "vertical"}}></textarea>
+                            <textarea value={journalContent} onChange={(e) => setJournalContent(e.target.value)} className="journal-input fade-in" placeholder="Record your thoughts, moon goddess..." style={{width: "100%", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "var(--border-radius-sm)", padding: "1rem", color: "var(--text-primary)", minHeight: "100px", marginBottom: "1rem", fontSize: "0.9rem", fontFamily: "var(--font-body)", resize: "vertical"}}></textarea>
                             <div style={{textAlign: "right"}} className="fade-in">
-                                <button className="btn-primary" style={{background: "var(--accent-magic)", border: "none", color: "var(--bg-dark)", padding: "0.6rem 1.5rem", borderRadius: "var(--border-radius-pill)", fontWeight: "600", cursor: "pointer", fontSize: "0.9rem"}}><i className="fa-solid fa-leaf"></i> SCRIBE</button>
+                                <button onClick={saveJournal} className="btn-primary" style={{background: "var(--accent-magic)", border: "none", color: "var(--bg-dark)", padding: "0.6rem 1.5rem", borderRadius: "var(--border-radius-pill)", fontWeight: "600", cursor: "pointer", fontSize: "0.9rem"}}><i className="fa-solid fa-leaf"></i> SCRIBE</button>
                             </div>
                         </>
                     ) : (
                         <div className="memories-list fade-in">
-                            <p className="text-muted text-center py-4" style={{margin: 0}}>Your vault is empty. Scribe your first thought.</p>
+                            {journalEntries.length === 0 ? (
+                                <p className="text-muted text-center py-4" style={{margin: 0}}>Your vault is empty. Scribe your first thought.</p>
+                            ) : (
+                                <div style={{display: "flex", flexDirection: "column", gap: "1rem"}}>
+                                    {journalEntries.map(e => (
+                                        <div key={e.id} style={{background: "rgba(0,0,0,0.2)", padding: "1rem", borderRadius: "var(--border-radius-sm)"}}>
+                                            <div style={{display: "flex", justifyContent: "space-between", marginBottom: "0.5rem", fontSize: "0.8rem", color: "var(--text-muted)"}}>
+                                                <span>{new Date(e.created_at).toLocaleDateString()}</span>
+                                                <span><i className="fa-solid fa-face-smile text-gold"></i> {e.mood}/10 &nbsp; <i className="fa-solid fa-bolt text-magic"></i> {e.energy}/10</span>
+                                            </div>
+                                            <p style={{fontSize: "0.95rem", color: "var(--text-primary)", lineHeight: "1.5"}}>{e.content}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -154,15 +340,36 @@ export function DashboardContent() {
                 
                 <div className="glass-panel moons-call-chat" style={{marginTop: "1.5rem", display: "flex", flexDirection: "column", height: "320px", padding: "1.5rem"}}>
                     <h4 className="text-gold mb-2" style={{color: "var(--accent-gold)", fontFamily: "var(--font-heading)", fontSize: "1rem", marginBottom: "1rem"}}><i className="fa-solid fa-moon"></i> THE MOON'S CALL</h4>
-                    <div style={{flex: 1, overflowY: "auto", paddingRight: "0.5rem", marginBottom: "1rem", display: "flex", flexDirection: "column", gap: "0.5rem"}}>
-                        <div style={{alignSelf: "flex-start", background: "rgba(181, 124, 255, 0.05)", border: "1px solid rgba(181, 124, 255, 0.1)", borderRadius: "var(--border-radius-sm)", padding: "0.8rem 1rem", maxWidth: "95%", fontSize: "0.85rem", color: "var(--text-primary)", lineHeight: "1.6"}}>
-                            <span className="text-muted mb-1" style={{display: "block", fontSize: "0.75rem"}}>quiet stillness.</span>
-                            I am here, always, a steadfast companion in your sky. You don't have to carry every celestial body on your own shoulders. Tell me, if you wish, what constellations are pressing down on you? Or perhaps, simply rest here in my silent presence, knowing that I see you, I hear you, and I hold space for every single particle of what you're feeling.
-                        </div>
+                    <div style={{flex: 1, overflowY: "auto", paddingRight: "0.5rem", marginBottom: "1rem", display: "flex", flexDirection: "column", gap: "0.8rem"}}>
+                        {chatMessages.map(msg => (
+                            <div key={msg.id} style={{
+                                alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', 
+                                background: msg.role === 'user' ? "rgba(255, 215, 0, 0.1)" : "rgba(181, 124, 255, 0.05)", 
+                                border: msg.role === 'user' ? "1px solid rgba(255, 215, 0, 0.2)" : "1px solid rgba(181, 124, 255, 0.1)", 
+                                borderRadius: "var(--border-radius-sm)", 
+                                padding: "0.8rem 1rem", 
+                                maxWidth: "95%", 
+                                fontSize: "0.85rem", 
+                                color: "var(--text-primary)", 
+                                lineHeight: "1.6"
+                            }}>
+                                {msg.role === 'ai' && <span className="text-muted mb-1" style={{display: "block", fontSize: "0.75rem"}}>quiet stillness.</span>}
+                                {msg.content}
+                            </div>
+                        ))}
+                        <div ref={messagesEndRef} />
                     </div>
                     <div style={{display: "flex", gap: "0.5rem"}}>
-                        <input type="text" className="auth-input" placeholder="Commune with Luna..." style={{flex: 1, padding: "0.6rem 1rem", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "var(--border-radius-sm)", color: "white", fontSize: "0.85rem"}} />
-                        <button className="btn-icon" style={{background: "var(--accent-gold)", color: "var(--bg-dark)", width: "36px", height: "36px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", border: "none", cursor: "pointer"}}><i className="fa-solid fa-paper-plane"></i></button>
+                        <input 
+                            type="text" 
+                            value={chatInput}
+                            onChange={(e) => setChatInput(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && sendChat()}
+                            className="auth-input" 
+                            placeholder="Commune with Luna..." 
+                            style={{flex: 1, padding: "0.6rem 1rem", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "var(--border-radius-sm)", color: "white", fontSize: "0.85rem"}} 
+                        />
+                        <button onClick={sendChat} className="btn-icon" style={{background: "var(--accent-gold)", color: "var(--bg-dark)", width: "36px", height: "36px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", border: "none", cursor: "pointer"}}><i className="fa-solid fa-paper-plane"></i></button>
                     </div>
                 </div>
 
@@ -174,7 +381,7 @@ export function DashboardContent() {
                             <div style={{fontSize: "0.75rem", color: "var(--text-muted)"}}>Day Streak <i className="fa-solid fa-fire" style={{color: "#f97316"}}></i></div>
                         </div>
                         <div style={{background: "rgba(0,0,0,0.2)", padding: "1.5rem 1rem", borderRadius: "var(--border-radius-sm)", textAlign: "center"}}>
-                            <div style={{fontSize: "1.8rem", fontFamily: "var(--font-heading)", color: "var(--accent-gold)", marginBottom: "0.25rem"}}>2</div>
+                            <div style={{fontSize: "1.8rem", fontFamily: "var(--font-heading)", color: "var(--accent-gold)", marginBottom: "0.25rem"}}>{completedCount}</div>
                             <div style={{fontSize: "0.75rem", color: "var(--text-muted)"}}>Quests<br/>Conquered</div>
                         </div>
                     </div>

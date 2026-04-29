@@ -23,23 +23,15 @@ export default async function DashboardPage() {
     .eq("id", user.id)
     .single();
 
-  let profile = profileData as import("@/types/database").UserRow | null;
-
-  if (!profile) {
-    profile = {
-      id: user.id,
-      email: user.email || "",
-      name: "Luna",
-      cycle_length: 28,
-      period_duration: 5,
-      cycle_regularity: "regular",
-      primary_goal: "understand_body",
-      onboarding_completed: true,
-      current_realm: "personal",
-    };
+  if (!profileData) {
+    redirect("/onboarding");
   }
 
+  const profile = profileData as import("@/types/database").UserRow;
+
   return (
-    <DashboardContent />
+    <DashboardContent
+      profile={profile}
+    />
   );
 }
