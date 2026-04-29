@@ -16,11 +16,32 @@ export function EmailSignInForm() {
     const supabase = createClient();
 
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      // First try to sign in
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      if (signInError) throw signInError;
+
+      if (signInError) {
+        // If the user doesn't exist or invalid credentials, try to sign up
+        if (signInError.message.includes("Invalid login credentials")) {
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email,
+            password,
+          });
+          
+          if (signUpError) {
+            throw signUpError;
+          }
+          // Sign up successful, proceed to dashboard
+          window.location.href = "/dashboard";
+          return;
+        }
+        
+        throw signInError;
+      }
+      
+      // Sign in successful
       window.location.href = "/dashboard";
     } catch (err: any) {
       setError(err.message);
