@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import type { UserRow } from "@/types/database";
 
-export function DashboardContent({ profile }: { profile: UserRow }) {
+
+export function DashboardContent() {
   const [realm, setRealm] = useState<"personal" | "work">("personal");
   const [activeTab, setActiveTab] = useState<"quests" | "journey">("quests");
   const [journalTab, setJournalTab] = useState<"new" | "memories">("new");

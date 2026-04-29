@@ -1,9 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { mockAIService } from "@/lib/ai/mock-service";
-import { InsightCard, PhaseCard } from "@/components/dashboard/InsightCard";
 import { DashboardContent } from "@/components/dashboard/DashboardContent";
-import type { Realm } from "@/types/realm";
 
 export const metadata = {
   title: "Dashboard — LunaRhythm",
@@ -43,8 +40,6 @@ export default async function DashboardPage() {
   }
 
   return (
-    <DashboardContent
-      profile={profile}
-    />
+    <DashboardContent />
   );
 }
