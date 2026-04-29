@@ -53,7 +53,7 @@ export async function updateSession(request: NextRequest) {
     }
 
     if (pathname.startsWith("/dashboard")) {
-      const { data: profileData } = await supabase
+      const { data: profileData } = await (supabase as any)
         .from("users")
         .select("onboarding_completed")
         .eq("id", user.id)
@@ -69,7 +69,7 @@ export async function updateSession(request: NextRequest) {
     }
 
     if (pathname === "/onboarding") {
-      const { data: onboardingData } = await supabase
+      const { data: onboardingData } = await (supabase as any)
         .from("users")
         .select("onboarding_completed")
         .eq("id", user.id)
